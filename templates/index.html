@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tumor Detection</title>
+
+  <!-- Bootstrap CSS (CDN) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Chart.js (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- optional custom CSS -->
+  <link href="/static/style.css" rel="stylesheet" />
+
+  <style>
+    /* fallback small styles if you don't add static/style.css */
+    .card-compact { padding: 1rem; border-radius: 12px; box-shadow: 0 6px 18px rgba(12,24,48,0.06); }
+    .small-muted { font-size: 0.85rem; color:#666; }
+    .log-window { background:#0f1720; color:#cbd5e1; padding:0.75rem; border-radius:6px; height:180px; overflow:auto; font-family: monospace; font-size:0.85rem; }
+    .thumb { width:120px; height:80px; object-fit:cover; border-radius:6px; border:1px solid #eee; }
+  </style>
+</head>
+<body class="bg-light">
+  <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+    <div class="container">
+      <a class="navbar-brand fw-bold" href="#">Tumor Detect</a>
+      <div class="d-flex align-items-center">
+        <small class="text-muted me-3">Pookie Lab</small>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container my-4">
+    <!-- Tabs -->
+    <ul class="nav nav-tabs" id="mainTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard" type="button">Dashboard</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="train-tab" data-bs-toggle="tab" data-bs-target="#train" type="button">Training</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="infer-tab" data-bs-toggle="tab" data-bs-target="#infer" type="button">Inference</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="data-tab" data-bs-toggle="tab" data-bs-target="#data" type="button">Dataset</button>
+      </li>
+    </ul>
+
+    <div class="tab-content mt-4">
+      <!-- DASHBOARD -->
+      <div class="tab-pane fade show active" id="dashboard" role="tabpanel">
+        <div class="row g-3 mb-3">
+          <div class="col-md-3">
+            <div class="card card-compact">
+              <div class="d-flex justify-content-between">
+                <div>
+                  <h6 class="mb-1">Status</h6>
+                  <div id="dash-phase" class="fw-bold">idle</div>
+                  <div class="small-muted" id="dash-msg">No training yet</div>
+                </div>
+                <div class="text-end">
+                  <small class="small-muted">Model</small>
+                  <div id="dash-model" class="fw-semibold">—</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-3">
+            <div class="card card-compact">
+              <h6 class="mb-1">Progress</h6>
+              <div class="progress" style="height:18px;">
+                <div id="dash-progress" class="progress-bar" role="progressbar" style="width:0%">0%</div>
+              </div>
+              <div class="small-muted mt-2" id="dash-last">—</div>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="card card-compact">
+              <h6 class="mb-2">Training metrics (live)</h6>
+              <canvas id="trainChart" height="90"></canvas>
+              <div class="small-muted mt-2">Chart updates automatically from <code>/status</code></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-md-8">
+            <div class="card card-compact">
+              <h6>Recent logs</h6>
+              <div id="logWindow" class="log-window">No logs yet.</div>
+            </div>
+          </div>
+
+          <div class="col-md-4">
+            <div class="card card-compact">
+              <h6>Quick actions</h6>
+              <div class="d-grid gap-2">
+                <button class="btn btn-primary" onclick="document.getElementById('train-tab').click()">Start Training</button>
+                <button class="btn btn-outline-secondary" onclick="document.getElementById('infer-tab').click()">Open Inference</button>
+                <a class="btn btn-light" href="/models/" target="_blank">View models folder</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TRAINING -->
+      <div class="tab-pane fade" id="train" role="tabpanel">
+        <div class="row">
+          <div class="col-lg-6">
+            <div class="card card-compact mb-3">
+              <h6>Training configuration</h6>
+              <div class="mb-2">
+                <label class="form-label small-muted">Epochs</label>
+                <input id="cfg-epochs" class="form-control" type="number" value="3" min="1" />
+              </div>
+              <div class="mb-2">
+                <label class="form-label small-muted">Learning rate</label>
+                <input id="cfg-lr" class="form-control" type="text" value="0.001" />
+              </div>
+              <div class="mb-2">
+                <label class="form-label small-muted">Batch size</label>
+                <input id="cfg-bs" class="form-control" type="number" value="8" />
+              </div>
+              <div class="d-flex gap-2">
+                <button id="btn-start" class="btn btn-success" onclick="startTraining()">Start Training</button>
+                <button id="btn-stop" class="btn btn-outline-danger" onclick="stopTraining()" disabled>Stop</button>
+              </div>
+            </div>
+
+            <div class="card card-compact">
+              <h6>Training log</h6>
+              <div id="train-log" class="log-window">Not running.</div>
+            </div>
+          </div>
+
+          <div class="col-lg-6">
+            <div class="card card-compact mb-3">
+              <h6>Live progress</h6>
+              <div class="progress mb-2" style="height:18px;">
+                <div id="train-progress" class="progress-bar" role="progressbar" style="width:0%">0%</div>
+              </div>
+              <div class="small-muted" id="train-last">—</div>
+            </div>
+
+            <div class="card card-compact">
+              <h6>Recent saved models</h6>
+              <div id="models-list" class="small-muted">No models yet.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- INFERENCE -->
+      <div class="tab-pane fade" id="infer" role="tabpanel">
+        <div class="row">
+          <div class="col-md-5">
+            <div class="card card-compact mb-3">
+              <h6>Run inference</h6>
+              <input id="infer-file" type="file" class="form-control mb-2" />
+              <button class="btn btn-primary" onclick="runInfer()">Run Inference</button>
+              <div class="small-muted mt-2">Model used: <span id="infer-model">auto / latest</span></div>
+            </div>
+
+            <div class="card card-compact">
+              <h6>Prediction</h6>
+              <div id="infer-result">No result yet.</div>
+            </div>
+          </div>
+
+          <div class="col-md-7">
+            <div class="card card-compact">
+              <h6>Heatmap / Overlay</h6>
+              <div class="d-flex justify-content-center align-items-center" style="height:260px; background:#fafafa; border-radius:8px;">
+                <img id="heatmap" src="" alt="heatmap" style="max-width:100%; max-height:100%; display:none; border-radius:6px;" />
+                <div id="heat-placeholder" class="small-muted">Heatmap will appear here when inference returns overlay images</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DATASET -->
+      <div class="tab-pane fade" id="data" role="tabpanel">
+        <div class="row">
+          <div class="col-md-5">
+            <div class="card card-compact mb-3">
+              <h6>Upload image</h6>
+              <input id="data-file" type="file" class="form-control mb-2" />
+              <button class="btn btn-primary" onclick="uploadData()">Upload</button>
+              <div class="small-muted mt-2">Tip: place train/val folders under <code>uploads/dataset/</code> for real training.</div>
+            </div>
+
+            <div class="card card-compact">
+              <h6>Folder view</h6>
+              <div id="uploads-list" class="small-muted">No files listed.</div>
+            </div>
+          </div>
+
+          <div class="col-md-7">
+            <div class="card card-compact">
+              <h6>Thumbnails</h6>
+              <div id="thumb-grid" class="d-flex flex-wrap gap-2"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Bootstrap JS (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    // ----- Chart setup -----
+    const ctx = document.getElementById('trainChart').getContext('2d');
+    const trainChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          { label: 'Train loss (sim)', data: [], tension: 0.25, fill: false },
+          { label: 'Val acc (sim)', data: [], tension: 0.25, fill: false }
+        ]
+      },
+      options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
+    });
+
+    // helper to append logs
+    function appendLog(elId, text) {
+      const el = document.getElementById(elId);
+      el.innerText = el.innerText + '\\n' + text;
+      el.scrollTop = el.scrollHeight;
+    }
+
+    // status polling
+    let statusTimer = null;
+    async function fetchStatusOnce() {
+      try {
+        const res = await fetch('/status');
+        if (!res.ok) return;
+        const j = await res.json();
+        // dash
+        document.getElementById('dash-phase').innerText = j.phase || '—';
+        document.getElementById('dash-msg').innerText = j.last_message || '';
+        document.getElementById('dash-last').innerText = j.last_message || '—';
+        if (j.model) document.getElementById('dash-model').innerText = j.model.split('/').pop();
+
+        const p = j.progress || 0;
+        document.getElementById('dash-progress').style.width = p + '%';
+        document.getElementById('dash-progress').innerText = p + '%';
+        document.getElementById('train-progress').style.width = p + '%';
+        document.getElementById('train-progress').innerText = p + '%';
+        if (j.last_message) {
+          appendLog('logWindow', '[' + new Date().toLocaleTimeString() + '] ' + j.last_message);
+          appendLog('train-log', '[' + new Date().toLocaleTimeString() + '] ' + j.last_message);
+        }
+        if ((trainChart.data.labels.length === 0) || (trainChart.data.labels.length < 100 && j.phase === 'training')) {
+          const step = (trainChart.data.labels.length + 1).toString();
+          trainChart.data.labels.push(step);
+          trainChart.data.datasets[0].data.push(Math.max(0.1, Math.random()*1.5));
+          trainChart.data.datasets[1].data.push(Math.min(1, Math.random()*0.5 + 0.5));
+          trainChart.update();
+        }
+      } catch (err) {
+        // ignore
+      }
+    }
+
+    function startStatusPoll() {
+      if (statusTimer) return;
+      statusTimer = setInterval(fetchStatusOnce, 1500);
+    }
+    startStatusPoll();
+
+    async function startTraining() {
+      const epochs = document.getElementById('cfg-epochs').value;
+      const lr = document.getElementById('cfg-lr').value;
+      document.getElementById('btn-start').disabled = true;
+      document.getElementById('btn-stop').disabled = false;
+      appendLog('train-log', 'Starting training...');
+      await fetch('/start-training', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ epochs: epochs, lr: lr })
+      });
+      startStatusPoll();
+    }
+
+    function stopTraining() {
+      appendLog('train-log', 'Stop requested. Restart server to cancel background thread.');
+      document.getElementById('btn-stop').disabled = true;
+      document.getElementById('btn-start').disabled = false;
+    }
+
+    async function runInfer() {
+      const f = document.getElementById('infer-file').files[0];
+      if (!f) { alert('Pick a file first'); return; }
+      const form = new FormData(); form.append('file', f);
+      const res = await fetch('/infer', { method:'POST', body: form });
+      const j = await res.json();
+      const rCard = document.getElementById('infer-result');
+      rCard.innerHTML = '<div class="p-2"><strong>Prediction:</strong> ' + (j.prediction || '—') + '</div>' +
+                        '<div class="small-muted">Probs: ' + (j.probs ? JSON.stringify(j.probs) : '—') + '</div>' +
+                        '<div class="mt-2 small-muted">Input: ' + (j.input || '') + '</div>';
+      if (j.heatmap) {
+        const hm = document.getElementById('heatmap');
+        hm.src = j.heatmap;
+        hm.style.display = 'block';
+        document.getElementById('heat-placeholder').style.display = 'none';
+      }
+    }
+
+    async function uploadData() {
+      const f = document.getElementById('data-file').files[0];
+      if (!f) { alert('Pick a file'); return; }
+      const form = new FormData(); form.append('file', f);
+      await fetch('/upload', { method:'POST', body: form });
+      appendLog('logWindow', 'Uploaded ' + f.name);
+      loadUploads();
+    }
+
+    async function loadUploads() {
+      const grid = document.getElementById('thumb-grid');
+      const list = document.getElementById('uploads-list');
+      grid.innerHTML = ''; list.innerText = 'Files in uploads/ will appear here if server exposes a listing.';
+    }
+    // initial load
+    loadUploads();
+  </script>
+</body>
+</html>

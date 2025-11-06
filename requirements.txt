@@ -1,0 +1,13 @@
+Flask==2.2.5
+torch
+torchvision
+Pillow
+numpy
+matplotlib
+scikit-learn
+opencv-python
+wtforms
+flask-wtf
+werkzeug
+pdfkit
+pydicom
