@@ -13,23 +13,26 @@ It is designed to run entirely on your machine and is intended for demonstration
 - Exported ZIP with project for local run
 
 ## Quick start (CPU-only)
-1. Create and activate a virtual environment:
+1. Clone the repository
+   If you dont know how to clone [Click Here](https://youtu.be/q9wc7hUrW8U?si=h9WQRkWH4fayA4JN)   
+
+2. Create and activate a virtual environment:
    ```bash
    python -m venv venv
    source venv/bin/activate   # Windows: venv\Scripts\activate
    ```
-2. Install requirements:
+3. Install requirements:
    ```bash
    pip install -r requirements.txt
    ```
-3. (Optional) Prepare dataset:
+4. (Optional) Prepare dataset:
    - Put images arranged as `uploads/dataset/train/class_name/*.jpg` and `uploads/dataset/val/class_name/*.jpg`
    - Or use the Upload page to add images manually.
-4. Run the app:
+5. Run the app:
    ```bash
    python app.py
    ```
-5. Open browser: http://127.0.0.1:5000
+6. Open browser: http://127.0.0.1:5000
    If the port is busy try running 
    ```bash
    python -c "from app import app; app.run(host='127.0.0.1', port=5001, debug=True)"
