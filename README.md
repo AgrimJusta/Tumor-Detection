@@ -30,6 +30,11 @@ It is designed to run entirely on your machine and is intended for demonstration
    python app.py
    ```
 5. Open browser: http://127.0.0.1:5000
+   If the port is busy try running 
+   ```bash
+   python -c "from app import app; app.run(host='127.0.0.1', port=5001, debug=True)"
+   ```
+   you can replace the port with any available ones.
 
 ## Notes
 - The included training loop in `model_utils.py` is small and intended as a starting point. Adapt dataset paths, transforms, and model saving for your use.
