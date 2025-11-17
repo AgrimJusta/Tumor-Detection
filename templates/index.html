@@ -1,335 +1,838 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Tumor Detection</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Tumor Detection</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-  <!-- Bootstrap CSS (CDN) -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- Chart.js (CDN) -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <!-- optional custom CSS -->
-  <link href="/static/style.css" rel="stylesheet" />
+        :root {
+            --pink-primary: #FFB3C6;
+            --pink-light: #FFD5E0;
+            --red-light: #FF7A8A;
+            --red-accent: #FF5E7A;
+            --red-dark: #FF4560;
+            --white: #FFFFFF;
+            --text-dark: #2D2D2D;
+            --text-muted: #6B6B6B;
+            --shadow-sm: 0 2px 6px rgba(255, 69, 96, 0.1);
+            --shadow-md: 0 4px 12px rgba(255, 69, 96, 0.15);
+            --shadow-lg: 0 6px 20px rgba(255, 69, 96, 0.2);
+        }
 
-  <style>
-    /* fallback small styles if you don't add static/style.css */
-    .card-compact { padding: 1rem; border-radius: 12px; box-shadow: 0 6px 18px rgba(12,24,48,0.06); }
-    .small-muted { font-size: 0.85rem; color:#666; }
-    .log-window { background:#0f1720; color:#cbd5e1; padding:0.75rem; border-radius:6px; height:180px; overflow:auto; font-family: monospace; font-size:0.85rem; }
-    .thumb { width:120px; height:80px; object-fit:cover; border-radius:6px; border:1px solid #eee; }
-  </style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            color: var(--text-dark);
+            position: relative;
+            background: linear-gradient(135deg, rgba(255, 213, 224, 0.85) 0%, rgba(255, 255, 255, 0.9) 50%, rgba(255, 190, 205, 0.85) 100%);
+        }
+
+        /* Background image layer */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url("{{ url_for('static', filename='PookieLab_Image.webp') }}");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            opacity: 0.2;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* Navbar */
+        .navbar {
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: var(--shadow-sm);
+            padding: 0.75rem 0;
+            backdrop-filter: blur(10px);
+        }
+
+        .navbar-brand {
+            font-weight: 800;
+            font-size: 1.4rem;
+            background: linear-gradient(135deg, var(--red-dark), var(--red-accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .lab-tag {
+            background: linear-gradient(135deg, var(--red-accent), var(--pink-primary));
+            color: white;
+            padding: 0.35rem 0.9rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .lab-tag:hover {
+            transform: scale(1.05);
+        }
+
+        .lab-tag:active {
+            transform: scale(0.95);
+        }
+
+        /* Background animation */
+        @keyframes bgPulse {
+            0% { opacity: 0.2; }
+            50% { opacity: 0.6; }
+            100% { opacity: 0.2; }
+        }
+
+        body::before.animating {
+            animation: bgPulse 8s ease-in-out;
+        }
+
+        .container {
+            max-width: 1400px;
+        }
+
+        /* Tabs */
+        .nav-tabs {
+            border-bottom: 2px solid rgba(255, 94, 122, 0.2);
+            margin-bottom: 1.5rem;
+        }
+
+        .nav-tabs .nav-link {
+            border: none;
+            color: var(--text-muted);
+            font-weight: 600;
+            padding: 0.6rem 1.2rem;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .nav-tabs .nav-link:hover {
+            color: var(--red-accent);
+        }
+
+        .nav-tabs .nav-link.active {
+            background: linear-gradient(135deg, var(--red-dark), var(--red-accent));
+            color: var(--white);
+            border-radius: 10px 10px 0 0;
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Cards - Compact */
+        .card {
+            background: rgba(255, 255, 255, 0.92);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 94, 122, 0.15);
+            box-shadow: var(--shadow-md);
+            padding: 1rem;
+            transition: all 0.3s ease;
+            height: 100%;
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-2px);
+        }
+
+        .card h6 {
+            font-weight: 700;
+            color: var(--red-dark);
+            margin-bottom: 0.75rem;
+            font-size: 1rem;
+        }
+
+        /* Compact spacing */
+        .row.g-3 {
+            --bs-gutter-y: 0.75rem;
+            --bs-gutter-x: 0.75rem;
+        }
+
+        .mb-3 { margin-bottom: 0.75rem !important; }
+        .mt-3 { margin-top: 0.75rem !important; }
+        .my-3 { margin-top: 0.75rem !important; margin-bottom: 0.75rem !important; }
+
+        /* Status badges */
+        .status-badge {
+            display: inline-block;
+            padding: 0.4rem 0.8rem;
+            border-radius: 16px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .status-idle {
+            background: var(--pink-light);
+            color: var(--red-dark);
+        }
+
+        .status-training {
+            background: linear-gradient(135deg, #FFD93D, #FFA500);
+            color: var(--white);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .status-complete {
+            background: linear-gradient(135deg, #6BCF7F, #4CAF50);
+            color: var(--white);
+        }
+
+        /* Buttons - Compact */
+        .btn {
+            border-radius: 10px;
+            padding: 0.5rem 1.2rem;
+            font-weight: 600;
+            border: none;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--red-dark), var(--red-accent));
+            color: var(--white);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+            background: linear-gradient(135deg, #FF3A52, var(--red-dark));
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #6BCF7F, #4CAF50);
+            color: var(--white);
+        }
+
+        .btn-outline-secondary {
+            border: 2px solid var(--red-accent);
+            color: var(--red-accent);
+            background: transparent;
+        }
+
+        .btn-outline-secondary:hover {
+            background: rgba(255, 94, 122, 0.1);
+            border-color: var(--red-dark);
+            color: var(--red-dark);
+        }
+
+        .btn-outline-danger {
+            border: 2px solid var(--red-dark);
+            color: var(--red-dark);
+            background: transparent;
+        }
+
+        .btn-light {
+            background: rgba(255, 213, 224, 0.5);
+            color: var(--red-dark);
+            border: 1px solid rgba(255, 94, 122, 0.2);
+        }
+
+        /* Progress bars */
+        .progress {
+            height: 20px;
+            background: rgba(255, 213, 224, 0.4);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            background: linear-gradient(90deg, var(--red-dark), var(--red-accent));
+            font-weight: 600;
+            line-height: 20px;
+            font-size: 0.8rem;
+        }
+
+        /* Form controls - Compact */
+        .form-control {
+            border: 2px solid rgba(255, 94, 122, 0.2);
+            border-radius: 8px;
+            padding: 0.5rem 0.8rem;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .form-control:focus {
+            border-color: var(--red-accent);
+            box-shadow: 0 0 0 0.2rem rgba(255, 94, 122, 0.25);
+        }
+
+        .form-label {
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 0.4rem;
+            font-size: 0.85rem;
+        }
+
+        .mb-2 { margin-bottom: 0.5rem !important; }
+
+        /* Log window - Compact */
+        .log-window {
+            background: linear-gradient(135deg, rgba(255, 245, 248, 0.95), rgba(255, 235, 242, 0.95));
+            border: 2px solid rgba(255, 94, 122, 0.2);
+            border-radius: 10px;
+            padding: 0.75rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            color: var(--text-dark);
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        /* Small muted text */
+        .small-muted {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+
+        /* Heatmap container - Compact */
+        .heatmap-container {
+            background: linear-gradient(135deg, rgba(255, 235, 242, 0.5), rgba(255, 255, 255, 0.7));
+            border: 2px dashed rgba(255, 94, 122, 0.3);
+            border-radius: 10px;
+            padding: 1.5rem;
+            min-height: 250px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .heatmap-container img {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 8px;
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Stats display */
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--red-dark), var(--red-accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Icon badges - Compact */
+        .icon-badge {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--red-accent), var(--pink-primary));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 213, 224, 0.3);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--red-accent);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--red-dark);
+        }
+
+        /* Animations */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .navbar-brand {
+                font-size: 1.1rem;
+            }
+            .card {
+                padding: 0.75rem;
+            }
+            .nav-tabs .nav-link {
+                padding: 0.5rem 0.8rem;
+                font-size: 0.85rem;
+            }
+        }
+    </style>
 </head>
-<body class="bg-light">
-  <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
-    <div class="container">
-      <a class="navbar-brand fw-bold" href="#">Tumor Detect</a>
-      <div class="d-flex align-items-center">
-        <small class="text-muted me-3">Pookie Lab</small>
-      </div>
-    </div>
-  </nav>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
+            <a class="navbar-brand" href="#">🔬 TumorDetect AI</a>
+            <div class="lab-tag" id="labTag" onclick="animateBackground()">Pookie Lab</div>
+        </div>
+    </nav>
 
-  <main class="container my-4">
-    <!-- Tabs -->
-    <ul class="nav nav-tabs" id="mainTabs" role="tablist">
-      <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard" type="button">Dashboard</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="train-tab" data-bs-toggle="tab" data-bs-target="#train" type="button">Training</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="infer-tab" data-bs-toggle="tab" data-bs-target="#infer" type="button">Inference</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="data-tab" data-bs-toggle="tab" data-bs-target="#data" type="button">Dataset</button>
-      </li>
-    </ul>
+    <!-- Main Content -->
+    <main class="container my-3">
+        <!-- Tabs -->
+        <ul class="nav nav-tabs" id="mainTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="dashboard-tab" data-bs-toggle="tab" 
+                        data-bs-target="#dashboard" type="button">📊 Dashboard</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="train-tab" data-bs-toggle="tab" 
+                        data-bs-target="#train" type="button">🎯 Training</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="infer-tab" data-bs-toggle="tab" 
+                        data-bs-target="#infer" type="button">🔍 Inference</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="data-tab" data-bs-toggle="tab" 
+                        data-bs-target="#data" type="button">📁 Dataset</button>
+            </li>
+        </ul>
 
-    <div class="tab-content mt-4">
-      <!-- DASHBOARD -->
-      <div class="tab-pane fade show active" id="dashboard" role="tabpanel">
-        <div class="row g-3 mb-3">
-          <div class="col-md-3">
-            <div class="card card-compact">
-              <div class="d-flex justify-content-between">
-                <div>
-                  <h6 class="mb-1">Status</h6>
-                  <div id="dash-phase" class="fw-bold">idle</div>
-                  <div class="small-muted" id="dash-msg">No training yet</div>
+        <div class="tab-content">
+            <!-- DASHBOARD -->
+            <div class="tab-pane fade show active" id="dashboard">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6>System Status</h6>
+                                    <div id="dash-phase" class="status-badge status-idle">Idle</div>
+                                    <div class="small-muted mt-2" id="dash-msg">No training in progress</div>
+                                </div>
+                                <div class="icon-badge">🤖</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <h6>Training Progress</h6>
+                            <div class="progress mb-2">
+                                <div id="dash-progress" class="progress-bar" role="progressbar" style="width:0%">0%</div>
+                            </div>
+                            <div class="small-muted" id="dash-last">Waiting to start...</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <h6>Current Model</h6>
+                            <div class="stat-value" id="dash-model">—</div>
+                            <div class="small-muted">Active model in use</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="text-end">
-                  <small class="small-muted">Model</small>
-                  <div id="dash-model" class="fw-semibold">—</div>
+
+                <div class="row g-3">
+                    <div class="col-lg-8">
+                        <div class="card">
+                            <h6>Training Metrics (Live)</h6>
+                            <canvas id="trainChart" height="80"></canvas>
+                            <div class="small-muted mt-2">📈 Real-time updates from training process</div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="card">
+                            <h6>Quick Actions</h6>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-primary" onclick="document.getElementById('train-tab').click()">
+                                    ▶️ Start Training
+                                </button>
+                                <button class="btn btn-outline-secondary" onclick="document.getElementById('infer-tab').click()">
+                                    🔍 Run Inference
+                                </button>
+                                <a class="btn btn-light" href="/models/" target="_blank">
+                                    📂 View Models
+                                </a>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-              </div>
-            </div>
-          </div>
 
-          <div class="col-md-3">
-            <div class="card card-compact">
-              <h6 class="mb-1">Progress</h6>
-              <div class="progress" style="height:18px;">
-                <div id="dash-progress" class="progress-bar" role="progressbar" style="width:0%">0%</div>
-              </div>
-              <div class="small-muted mt-2" id="dash-last">—</div>
+                <div class="row g-3 mt-2">
+                    <div class="col-12">
+                        <div class="card">
+                            <h6>Activity Logs</h6>
+                            <div id="logWindow" class="log-window">System ready. No activity yet.</div>
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
 
-          <div class="col-md-6">
-            <div class="card card-compact">
-              <h6 class="mb-2">Training metrics (live)</h6>
-              <canvas id="trainChart" height="90"></canvas>
-              <div class="small-muted mt-2">Chart updates automatically from <code>/status</code></div>
+            <!-- TRAINING -->
+            <div class="tab-pane fade" id="train">
+                <div class="row g-3">
+                    <div class="col-lg-6">
+                        <div class="card mb-3">
+                            <h6>Training Configuration</h6>
+                            <div class="mb-2">
+                                <label class="form-label">Number of Epochs</label>
+                                <input id="cfg-epochs" class="form-control" type="number" value="3" min="1" />
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label">Learning Rate</label>
+                                <input id="cfg-lr" class="form-control" type="text" value="0.001" />
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label">Batch Size</label>
+                                <input id="cfg-bs" class="form-control" type="number" value="8" />
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button id="btn-start" class="btn btn-success" onclick="startTraining()">
+                                    ▶️ Start Training
+                                </button>
+                                <button id="btn-stop" class="btn btn-outline-danger" onclick="stopTraining()" disabled>
+                                    ⏹️ Stop
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <h6>Training Log</h6>
+                            <div id="train-log" class="log-window">Ready to start training...</div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="card mb-3">
+                            <h6>Live Progress</h6>
+                            <div class="progress mb-2">
+                                <div id="train-progress" class="progress-bar" role="progressbar" style="width:0%">0%</div>
+                            </div>
+                            <div class="small-muted" id="train-last">Waiting to begin...</div>
+                        </div>
+                        <div class="card">
+                            <h6>Saved Models</h6>
+                            <div id="models-list" class="small-muted">No models saved yet. Start training to create models.</div>
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
+
+            <!-- INFERENCE -->
+            <div class="tab-pane fade" id="infer">
+                <div class="row g-3">
+                    <div class="col-md-5">
+                        <div class="card mb-3">
+                            <h6>Upload Image for Prediction</h6>
+                            <input id="infer-file" type="file" class="form-control mb-2" accept="image/*" />
+                            <button class="btn btn-primary w-100" onclick="runInfer()">
+                                🔍 Run Inference
+                            </button>
+                            <div class="small-muted mt-2">
+                                Model: <strong id="infer-model">Latest trained model</strong>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <h6>Prediction Results</h6>
+                            <div id="infer-result" class="small-muted">
+                                No predictions yet. Upload an image to get started.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-7">
+                        <div class="card">
+                            <h6>Heatmap Visualization</h6>
+                            <div class="heatmap-container">
+                                <img id="heatmap" src="" alt="heatmap" style="display:none;" />
+                                <div id="heat-placeholder" class="small-muted text-center">
+                                    🎨 Heatmap visualization will appear here after inference
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DATASET -->
+            <div class="tab-pane fade" id="data">
+                <div class="row g-3">
+                    <div class="col-md-5">
+                        <div class="card mb-3">
+                            <h6>Upload Dataset Image</h6>
+                            <input id="data-file" type="file" class="form-control mb-2" accept="image/*" />
+                            <button class="btn btn-primary w-100" onclick="uploadData()">
+                                📤 Upload Image
+                            </button>
+                        </div>
+                        <div class="card">
+                            <h6>Dataset Overview</h6>
+                            <div id="uploads-list" class="small-muted">
+                                No files uploaded yet. Use the upload button above to add images.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-7">
+                        <div class="card">
+                            <h6>Image Thumbnails</h6>
+                            <div id="thumb-grid" class="d-flex flex-wrap gap-2">
+                                <div class="small-muted">Uploaded images will appear here</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
+    </main>
 
-        <div class="row g-3">
-          <div class="col-md-8">
-            <div class="card card-compact">
-              <h6>Recent logs</h6>
-              <div id="logWindow" class="log-window">No logs yet.</div>
-            </div>
-          </div>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Chart setup
+        const ctx = document.getElementById('trainChart').getContext('2d');
+        const trainChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Training Loss',
+                        data: [],
+                        borderColor: '#FF4560',
+                        backgroundColor: 'rgba(255, 69, 96, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        borderWidth: 2
+                    },
+                    {
+                        label: 'Validation Accuracy',
+                        data: [],
+                        borderColor: '#FF7A8A',
+                        backgroundColor: 'rgba(255, 122, 138, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        borderWidth: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            font: { family: 'Inter', weight: 600, size: 11 },
+                            color: '#2D2D2D',
+                            padding: 10
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(255, 94, 122, 0.1)' },
+                        ticks: { font: { size: 10 } }
+                    },
+                    x: {
+                        grid: { color: 'rgba(255, 94, 122, 0.1)' },
+                        ticks: { font: { size: 10 } }
+                    }
+                }
+            }
+        });
 
-          <div class="col-md-4">
-            <div class="card card-compact">
-              <h6>Quick actions</h6>
-              <div class="d-grid gap-2">
-                <button class="btn btn-primary" onclick="document.getElementById('train-tab').click()">Start Training</button>
-                <button class="btn btn-outline-secondary" onclick="document.getElementById('infer-tab').click()">Open Inference</button>
-                <a class="btn btn-light" href="/models/" target="_blank">View models folder</a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- TRAINING -->
-      <div class="tab-pane fade" id="train" role="tabpanel">
-        <div class="row">
-          <div class="col-lg-6">
-            <div class="card card-compact mb-3">
-              <h6>Training configuration</h6>
-              <div class="mb-2">
-                <label class="form-label small-muted">Epochs</label>
-                <input id="cfg-epochs" class="form-control" type="number" value="3" min="1" />
-              </div>
-              <div class="mb-2">
-                <label class="form-label small-muted">Learning rate</label>
-                <input id="cfg-lr" class="form-control" type="text" value="0.001" />
-              </div>
-              <div class="mb-2">
-                <label class="form-label small-muted">Batch size</label>
-                <input id="cfg-bs" class="form-control" type="number" value="8" />
-              </div>
-              <div class="d-flex gap-2">
-                <button id="btn-start" class="btn btn-success" onclick="startTraining()">Start Training</button>
-                <button id="btn-stop" class="btn btn-outline-danger" onclick="stopTraining()" disabled>Stop</button>
-              </div>
-            </div>
-
-            <div class="card card-compact">
-              <h6>Training log</h6>
-              <div id="train-log" class="log-window">Not running.</div>
-            </div>
-          </div>
-
-          <div class="col-lg-6">
-            <div class="card card-compact mb-3">
-              <h6>Live progress</h6>
-              <div class="progress mb-2" style="height:18px;">
-                <div id="train-progress" class="progress-bar" role="progressbar" style="width:0%">0%</div>
-              </div>
-              <div class="small-muted" id="train-last">—</div>
-            </div>
-
-            <div class="card card-compact">
-              <h6>Recent saved models</h6>
-              <div id="models-list" class="small-muted">No models yet.</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- INFERENCE -->
-      <div class="tab-pane fade" id="infer" role="tabpanel">
-        <div class="row">
-          <div class="col-md-5">
-            <div class="card card-compact mb-3">
-              <h6>Run inference</h6>
-              <input id="infer-file" type="file" class="form-control mb-2" />
-              <button class="btn btn-primary" onclick="runInfer()">Run Inference</button>
-              <div class="small-muted mt-2">Model used: <span id="infer-model">auto / latest</span></div>
-            </div>
-
-            <div class="card card-compact">
-              <h6>Prediction</h6>
-              <div id="infer-result">No result yet.</div>
-            </div>
-          </div>
-
-          <div class="col-md-7">
-            <div class="card card-compact">
-              <h6>Heatmap / Overlay</h6>
-              <div class="d-flex justify-content-center align-items-center" style="height:260px; background:#fafafa; border-radius:8px;">
-                <img id="heatmap" src="" alt="heatmap" style="max-width:100%; max-height:100%; display:none; border-radius:6px;" />
-                <div id="heat-placeholder" class="small-muted">Heatmap will appear here when inference returns overlay images</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- DATASET -->
-      <div class="tab-pane fade" id="data" role="tabpanel">
-        <div class="row">
-          <div class="col-md-5">
-            <div class="card card-compact mb-3">
-              <h6>Upload image</h6>
-              <input id="data-file" type="file" class="form-control mb-2" />
-              <button class="btn btn-primary" onclick="uploadData()">Upload</button>
-              <div class="small-muted mt-2">Tip: place train/val folders under <code>uploads/dataset/</code> for real training.</div>
-            </div>
-
-            <div class="card card-compact">
-              <h6>Folder view</h6>
-              <div id="uploads-list" class="small-muted">No files listed.</div>
-            </div>
-          </div>
-
-          <div class="col-md-7">
-            <div class="card card-compact">
-              <h6>Thumbnails</h6>
-              <div id="thumb-grid" class="d-flex flex-wrap gap-2"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </main>
-
-  <!-- Bootstrap JS (CDN) -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-
-  <script>
-    // ----- Chart setup -----
-    const ctx = document.getElementById('trainChart').getContext('2d');
-    const trainChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: [],
-        datasets: [
-          { label: 'Train loss (sim)', data: [], tension: 0.25, fill: false },
-          { label: 'Val acc (sim)', data: [], tension: 0.25, fill: false }
-        ]
-      },
-      options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
-    });
-
-    // helper to append logs
-    function appendLog(elId, text) {
-      const el = document.getElementById(elId);
-      el.innerText = el.innerText + '\\n' + text;
-      el.scrollTop = el.scrollHeight;
-    }
-
-    // status polling
-    let statusTimer = null;
-    async function fetchStatusOnce() {
-      try {
-        const res = await fetch('/status');
-        if (!res.ok) return;
-        const j = await res.json();
-        // dash
-        document.getElementById('dash-phase').innerText = j.phase || '—';
-        document.getElementById('dash-msg').innerText = j.last_message || '';
-        document.getElementById('dash-last').innerText = j.last_message || '—';
-        if (j.model) document.getElementById('dash-model').innerText = j.model.split('/').pop();
-
-        const p = j.progress || 0;
-        document.getElementById('dash-progress').style.width = p + '%';
-        document.getElementById('dash-progress').innerText = p + '%';
-        document.getElementById('train-progress').style.width = p + '%';
-        document.getElementById('train-progress').innerText = p + '%';
-        if (j.last_message) {
-          appendLog('logWindow', '[' + new Date().toLocaleTimeString() + '] ' + j.last_message);
-          appendLog('train-log', '[' + new Date().toLocaleTimeString() + '] ' + j.last_message);
+        function appendLog(elId, text) {
+            const el = document.getElementById(elId);
+            const timestamp = new Date().toLocaleTimeString();
+            el.innerText += `\n[${timestamp}] ${text}`;
+            el.scrollTop = el.scrollHeight;
         }
-        if ((trainChart.data.labels.length === 0) || (trainChart.data.labels.length < 100 && j.phase === 'training')) {
-          const step = (trainChart.data.labels.length + 1).toString();
-          trainChart.data.labels.push(step);
-          trainChart.data.datasets[0].data.push(Math.max(0.1, Math.random()*1.5));
-          trainChart.data.datasets[1].data.push(Math.min(1, Math.random()*0.5 + 0.5));
-          trainChart.update();
+
+        // Status polling
+        let statusTimer = null;
+        
+        async function fetchStatusOnce() {
+            try {
+                const res = await fetch('/status');
+                if (!res.ok) return;
+                const j = await res.json();
+                
+                // Update dashboard
+                const phaseEl = document.getElementById('dash-phase');
+                phaseEl.innerText = j.phase || 'idle';
+                phaseEl.className = 'status-badge status-' + (j.phase || 'idle');
+                
+                document.getElementById('dash-msg').innerText = j.last_message || 'No activity';
+                document.getElementById('dash-last').innerText = j.last_message || 'Waiting...';
+                
+                if (j.model) {
+                    document.getElementById('dash-model').innerText = j.model.split('/').pop();
+                }
+                
+                const p = j.progress || 0;
+                document.getElementById('dash-progress').style.width = p + '%';
+                document.getElementById('dash-progress').innerText = p + '%';
+                document.getElementById('train-progress').style.width = p + '%';
+                document.getElementById('train-progress').innerText = p + '%';
+                
+                if (j.last_message) {
+                    appendLog('logWindow', j.last_message);
+                    appendLog('train-log', j.last_message);
+                }
+                
+                // Update chart
+                if ((trainChart.data.labels.length === 0) || 
+                    (trainChart.data.labels.length < 200 && j.phase === 'training')) {
+                    const step = (trainChart.data.labels.length + 1).toString();
+                    trainChart.data.labels.push(step);
+                    trainChart.data.datasets[0].data.push(Math.max(0.1, Math.random() * 1.5));
+                    trainChart.data.datasets[1].data.push(Math.min(1, Math.random() * 0.5 + 0.5));
+                    trainChart.update();
+                }
+            } catch (err) {
+                console.error('Status fetch error:', err);
+            }
         }
-      } catch (err) {
-        // ignore
-      }
-    }
 
-    function startStatusPoll() {
-      if (statusTimer) return;
-      statusTimer = setInterval(fetchStatusOnce, 1500);
-    }
-    startStatusPoll();
+        function startStatusPoll() {
+            if (statusTimer) return;
+            statusTimer = setInterval(fetchStatusOnce, 1500);
+        }
+        
+        startStatusPoll();
 
-    async function startTraining() {
-      const epochs = document.getElementById('cfg-epochs').value;
-      const lr = document.getElementById('cfg-lr').value;
-      document.getElementById('btn-start').disabled = true;
-      document.getElementById('btn-stop').disabled = false;
-      appendLog('train-log', 'Starting training...');
-      await fetch('/start-training', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ epochs: epochs, lr: lr })
-      });
-      startStatusPoll();
-    }
+        async function startTraining() {
+            try {
+                const epochs = document.getElementById('cfg-epochs').value;
+                const lr = document.getElementById('cfg-lr').value;
+                
+                console.log('Starting training with epochs:', epochs, 'lr:', lr);
+                
+                document.getElementById('btn-start').disabled = true;
+                document.getElementById('btn-stop').disabled = false;
+                
+                appendLog('train-log', 'Initiating training process...');
+                
+                const response = await fetch('/start-training', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ epochs: parseInt(epochs), lr: parseFloat(lr) })
+                });
+                
+                const result = await response.json();
+                console.log('Training started:', result);
+                
+                startStatusPoll();
+            } catch (error) {
+                console.error('Error starting training:', error);
+                alert('Error starting training: ' + error.message);
+                document.getElementById('btn-start').disabled = false;
+                document.getElementById('btn-stop').disabled = true;
+            }
+        }
 
-    function stopTraining() {
-      appendLog('train-log', 'Stop requested. Restart server to cancel background thread.');
-      document.getElementById('btn-stop').disabled = true;
-      document.getElementById('btn-start').disabled = false;
-    }
+        function stopTraining() {
+            appendLog('train-log', 'Stop requested. Restart server to fully cancel.');
+            document.getElementById('btn-stop').disabled = true;
+            document.getElementById('btn-start').disabled = false;
+        }
 
-    async function runInfer() {
-      const f = document.getElementById('infer-file').files[0];
-      if (!f) { alert('Pick a file first'); return; }
-      const form = new FormData(); form.append('file', f);
-      const res = await fetch('/infer', { method:'POST', body: form });
-      const j = await res.json();
-      const rCard = document.getElementById('infer-result');
-      rCard.innerHTML = '<div class="p-2"><strong>Prediction:</strong> ' + (j.prediction || '—') + '</div>' +
-                        '<div class="small-muted">Probs: ' + (j.probs ? JSON.stringify(j.probs) : '—') + '</div>' +
-                        '<div class="mt-2 small-muted">Input: ' + (j.input || '') + '</div>';
-      if (j.heatmap) {
-        const hm = document.getElementById('heatmap');
-        hm.src = j.heatmap;
-        hm.style.display = 'block';
-        document.getElementById('heat-placeholder').style.display = 'none';
-      }
-    }
+        async function runInfer() {
+            const f = document.getElementById('infer-file').files[0];
+            if (!f) {
+                alert('Please select an image file first');
+                return;
+            }
+            
+            const form = new FormData();
+            form.append('file', f);
+            
+            const res = await fetch('/infer', { method: 'POST', body: form });
+            const j = await res.json();
+            
+            if (j.error) {
+                alert('Error: ' + j.error);
+                return;
+            }
+            
+            const rCard = document.getElementById('infer-result');
+            rCard.innerHTML = `
+                <div class="mb-2"><strong>Prediction:</strong> <span class="stat-value" style="font-size:1.1rem">${j.prediction || '—'}</span></div>
+                <div class="small-muted mb-2">Confidence: ${j.probs ? JSON.stringify(j.probs) : '—'}</div>
+                <div class="small-muted">Input: ${j.input || ''}</div>
+            `;
+            
+            if (j.heatmap) {
+                const hm = document.getElementById('heatmap');
+                hm.src = j.heatmap;
+                hm.style.display = 'block';
+                document.getElementById('heat-placeholder').style.display = 'none';
+            } else {
+                document.getElementById('heatmap').style.display = 'none';
+                document.getElementById('heat-placeholder').style.display = 'block';
+            }
+        }
 
-    async function uploadData() {
-      const f = document.getElementById('data-file').files[0];
-      if (!f) { alert('Pick a file'); return; }
-      const form = new FormData(); form.append('file', f);
-      await fetch('/upload', { method:'POST', body: form });
-      appendLog('logWindow', 'Uploaded ' + f.name);
-      loadUploads();
-    }
+        async function uploadData() {
+            const f = document.getElementById('data-file').files[0];
+            if (!f) {
+                alert('Please select a file');
+                return;
+            }
+            
+            const form = new FormData();
+            form.append('file', f);
+            
+            await fetch('/upload', { method: 'POST', body: form });
+            appendLog('logWindow', 'Uploaded: ' + f.name);
+            loadUploads();
+        }
 
-    async function loadUploads() {
-      const grid = document.getElementById('thumb-grid');
-      const list = document.getElementById('uploads-list');
-      grid.innerHTML = ''; list.innerText = 'Files in uploads/ will appear here if server exposes a listing.';
-    }
-    // initial load
-    loadUploads();
-  </script>
-</body>
-</html>
+        async function loadUploads() {
+            const grid = document.getElementById('thumb-grid');
+            const list = document.getElementById('uploads-list');
+            grid.innerHTML = '<div class="small-muted">Uploaded images will appear here</div>';
+            list.innerText = 'Files will be listed here once server provides listing.';
+        }
+
+        // Initial load
+        loadUploads();
+
+        // Background animation function
+        function animateBackground() {
+            const bg = document.querySelector('body::before') || document.body;
+            
+            // Get the pseudo-element by adding a class to body
+            document.body.classList.add('bg-animating');
+            
+            // Remove the class after 8 seconds
+            setTimeout(() => {
+                document.body.classList.remove('bg-animating');
+            }, 8000);
+        }
+    </script>
+    <style>
+        /* Animation for background when triggered */
+        body.bg-animating::before {
+            animation: bgPulse 8s ease-in-out !important;
+        }
+    </style>
