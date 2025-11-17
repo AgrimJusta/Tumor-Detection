@@ -51,5 +51,5 @@ It is designed to run entirely on your machine and is intended for demonstration
 - `requirements.txt` — Python deps.
 - `README.md` — This file.
 
-Enjoy — ask me if you have any queries
+Enjoy — ask me if you have any queries.
 Mail - agrimjusta@gmail.com
